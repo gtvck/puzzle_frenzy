@@ -17,6 +17,7 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
   const requestRef = useRef(null);
   const particlesRef = useRef([]);
   const shakeRef = useRef({ active: false, intensity: 0, duration: 0, elapsed: 0 });
+  const lockInteractionRef = useRef(false);
 
   // Fixed block colors
   const BLOCK_COLORS = [
@@ -111,6 +112,11 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
     const mouse = new THREE.Vector2();
 
     const handleClick = (event) => {
+      // Don't process clicks during animations
+      if (lockInteractionRef.current) {
+        return;
+      }
+      
       // Calculate mouse position
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -118,23 +124,21 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
       
       // Cast ray
       raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(scene.children, true);
       
-      // Check for intersections
-      if (intersects.length > 0) {
-        for (let i = 0; i < intersects.length; i++) {
-          const object = intersects[i].object;
-          
-          // Find the actual block (might be an edge or child object)
-          let block = object;
-          while (block.parent && !block.userData.isBlock) {
-            block = block.parent;
-          }
-          
-          if (block && block.userData && block.userData.isBlock) {
-            handleBlockClick(block);
-            break;
-          }
+      // Find grid position by creating a plane at z=0 and finding intersection
+      const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+      const intersection = new THREE.Vector3();
+      raycaster.ray.intersectPlane(plane, intersection);
+      
+      // Convert intersection to grid coordinates
+      const gridX = Math.floor((intersection.x + (GRID_WIDTH * (BLOCK_SIZE + BLOCK_SPACING)) / 2) / (BLOCK_SIZE + BLOCK_SPACING));
+      const gridY = Math.floor((intersection.y + (GRID_HEIGHT * (BLOCK_SIZE + BLOCK_SPACING)) / 2) / (BLOCK_SIZE + BLOCK_SPACING));
+      
+      // Check if coordinates are valid and there's a block there
+      if (gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT) {
+        const clickedBlock = gridRef.current[gridY][gridX];
+        if (clickedBlock) {
+          handleBlockClick(clickedBlock);
         }
       }
     };
@@ -144,6 +148,8 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
     
     // Handle window resize
     const handleResize = () => {
+      if (!containerRef.current) return;
+      
       const width = containerRef.current.clientWidth;
       const height = containerRef.current.clientHeight;
       
@@ -166,12 +172,14 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
       };
       
       // Add DOM shake effect to container
-      containerRef.current.style.transition = 'transform 0.05s ease-in-out';
+      if (containerRef.current) {
+        containerRef.current.style.transition = 'transform 0.05s ease-in-out';
+      }
     }
 
     // Update screen shake
     function updateScreenShake(deltaTime) {
-      if (!shakeRef.current.active) return;
+      if (!shakeRef.current.active || !containerRef.current) return;
       
       const currentTime = Date.now();
       const elapsed = currentTime - shakeRef.current.startTime;
@@ -223,8 +231,8 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
           
           // Check horizontal match
           if (x >= 2) {
-            const color1 = gridRef.current[y][x-1]?.userData.color;
-            const color2 = gridRef.current[y][x-2]?.userData.color;
+            const color1 = gridRef.current[y][x-1]?.userData?.color;
+            const color2 = gridRef.current[y][x-2]?.userData?.color;
             if (color1 && color2 && color1 === color2) {
               colorOptions = colorOptions.filter(c => c !== color1);
             }
@@ -232,11 +240,16 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
           
           // Check vertical match
           if (y >= 2) {
-            const color1 = gridRef.current[y-1][x]?.userData.color;
-            const color2 = gridRef.current[y-2][x]?.userData.color;
+            const color1 = gridRef.current[y-1][x]?.userData?.color;
+            const color2 = gridRef.current[y-2][x]?.userData?.color;
             if (color1 && color2 && color1 === color2) {
               colorOptions = colorOptions.filter(c => c !== color1);
             }
+          }
+          
+          // Make sure we have at least one color option
+          if (colorOptions.length === 0) {
+            colorOptions = [...BLOCK_COLORS];
           }
           
           // Pick a random color from remaining options
@@ -320,10 +333,12 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
       }
       
       // Set user data
-      block.userData.isBlock = true;
-      block.userData.gridPosition = { x, y };
-      block.userData.color = color;
-      block.userData.isSpecial = isSpecial;
+      block.userData = {
+        isBlock: true,
+        gridPosition: { x, y },
+        color: color,
+        isSpecial: isSpecial
+      };
       
       // Add to scene and grid reference
       scene.add(block);
@@ -332,7 +347,7 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
       return block;
     }
 
-    // Create SUPER explosive particle effect
+    // Create explosive particle effect
     function createExplosion(position, color, count = 40) {
       // Start screen shake based on number of particles (more violent for special blocks)
       startScreenShake(count > 40 ? 0.3 : 0.15, 400);
@@ -404,21 +419,21 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
         const angle = Math.random() * Math.PI * 2;
         const height = Math.random() * 0.2 + 0.1;
         
-        particle.userData.velocity = new THREE.Vector3(
-          Math.cos(angle) * speed,
-          Math.sin(angle) * speed,
-          height
-        );
-        
-        particle.userData.spin = new THREE.Vector3(
-          (Math.random() - 0.5) * 0.3,
-          (Math.random() - 0.5) * 0.3,
-          (Math.random() - 0.5) * 0.3
-        );
-        
-        particle.userData.gravity = -0.01;
-        particle.userData.life = 1.0;
-        particle.userData.decay = Math.random() * 0.03 + 0.01;
+        particle.userData = {
+          velocity: new THREE.Vector3(
+            Math.cos(angle) * speed,
+            Math.sin(angle) * speed,
+            height
+          ),
+          spin: new THREE.Vector3(
+            (Math.random() - 0.5) * 0.3,
+            (Math.random() - 0.5) * 0.3,
+            (Math.random() - 0.5) * 0.3
+          ),
+          gravity: -0.01,
+          life: 1.0,
+          decay: Math.random() * 0.03 + 0.01
+        };
         
         scene.add(particle);
         particles.push(particle);
@@ -432,6 +447,8 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
       const deadParticles = [];
       
       particlesRef.current.forEach((particle, index) => {
+        if (!particle || !particle.userData) return;
+        
         // Update position
         particle.position.x += particle.userData.velocity.x;
         particle.position.y += particle.userData.velocity.y;
@@ -468,8 +485,8 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
           scene.remove(particle);
           
           // Dispose of geometry and material
-          particle.geometry.dispose();
-          particle.material.dispose();
+          if (particle.geometry) particle.geometry.dispose();
+          if (particle.material) particle.material.dispose();
         }
       });
       
@@ -481,6 +498,8 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
 
     // Handle block selection
     function handleBlockClick(block) {
+      if (lockInteractionRef.current) return;
+      
       if (!selectedBlockRef.current) {
         // First block selection
         selectedBlockRef.current = block;
@@ -494,17 +513,21 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
         const pos1 = selectedBlockRef.current.userData.gridPosition;
         const pos2 = block.userData.gridPosition;
         
-        const isAdjacent = 
-          (Math.abs(pos1.x - pos2.x) === 1 && pos1.y === pos2.y) ||
-          (Math.abs(pos1.y - pos2.y) === 1 && pos1.x === pos2.x);
+        const xDiff = Math.abs(pos1.x - pos2.x);
+        const yDiff = Math.abs(pos1.y - pos2.y);
+        
+        const isAdjacent = (xDiff === 1 && yDiff === 0) || (xDiff === 0 && yDiff === 1);
         
         if (isAdjacent) {
           // Swap blocks
-          swapBlocks(selectedBlockRef.current, block);
-          
-          // Clear selection
+          const blockToSwap = selectedBlockRef.current;
           unhighlightBlock(selectedBlockRef.current);
           selectedBlockRef.current = null;
+          
+          // Lock interactions during swap
+          lockInteractionRef.current = true;
+          
+          swapBlocks(blockToSwap, block);
         } else {
           // Select new block instead
           unhighlightBlock(selectedBlockRef.current);
@@ -532,20 +555,22 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
       });
       
       const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-      glow.userData.isGlow = true;
+      glow.userData = { isGlow: true };
       block.add(glow);
     }
 
     // Unhighlight block
     function unhighlightBlock(block) {
+      if (!block) return;
+      
       block.scale.set(1, 1, 1);
       
       // Remove glow effect
       block.children.forEach(child => {
         if (child.userData && child.userData.isGlow) {
           block.remove(child);
-          child.geometry.dispose();
-          child.material.dispose();
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) child.material.dispose();
         }
       });
     }
@@ -580,7 +605,7 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
         0
       );
       
-      const duration = 20; // animation frames
+      const duration = 15; // animation frames
       let frame = 0;
       
       function animateSwap() {
@@ -598,6 +623,7 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
           const matchFound = checkForMatches();
           if (matchFound) {
             onScoreUpdate(10);
+            // Don't unlock - will be unlocked after cascades complete
           } else {
             // If no match, swap back
             swapBlocksBack(block1, block2);
@@ -638,7 +664,7 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
         0
       );
       
-      const duration = 15; // animation frames
+      const duration = 10; // animation frames
       let frame = 0;
       
       function animateSwapBack() {
@@ -651,6 +677,9 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
           
           frame++;
           requestAnimationFrame(animateSwapBack);
+        } else {
+          // Unlock interactions after swap back is complete
+          lockInteractionRef.current = false;
         }
       }
       
@@ -784,8 +813,8 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
           requestAnimationFrame(animateRemoval);
         } else {
           scene.remove(block);
-          block.geometry.dispose();
-          block.material.dispose();
+          if (block.geometry) block.geometry.dispose();
+          if (block.material) block.material.dispose();
         }
       }
       
@@ -909,16 +938,33 @@ const GameBoard = ({ onScoreUpdate, onGameOver, difficulty }) => {
         const newMatches = checkForMatches();
         if (newMatches) {
           onScoreUpdate(5); // Small bonus for cascade matches
+        } else {
+          // Unlock interactions if no more matches
+          lockInteractionRef.current = false;
         }
       }, 800);
     }
 
     // Cleanup
     return () => {
+      console.log("GameBoard unmounting");
       renderer.domElement.removeEventListener('click', handleClick);
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(requestRef.current);
       
+      // Cleanup all THREE.js objects to prevent memory leaks
+      scene.traverse((object) => {
+        if (object.geometry) object.geometry.dispose();
+        if (object.material) {
+          if (Array.isArray(object.material)) {
+            object.material.forEach(material => material.dispose());
+          } else {
+            object.material.dispose();
+          }
+        }
+      });
+      
+      // Clear container
       if (containerRef.current) {
         while (containerRef.current.firstChild) {
           containerRef.current.removeChild(containerRef.current.firstChild);
