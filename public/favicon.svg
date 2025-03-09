@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Background -->
+  <rect width="64" height="64" fill="#222233" rx="8" ry="8" />
+  
+  <!-- Pixel Blocks -->
+  <rect x="12" y="12" width="12" height="12" fill="#ff4444" />
+  <rect x="26" y="12" width="12" height="12" fill="#44ff44" />
+  <rect x="40" y="12" width="12" height="12" fill="#4444ff" />
+  
+  <rect x="12" y="26" width="12" height="12" fill="#ffff44" />
+  <rect x="26" y="26" width="12" height="12" fill="#ff44ff" />
+  <rect x="40" y="26" width="12" height="12" fill="#44ffff" />
+  
+  <rect x="12" y="40" width="12" height="12" fill="#44ffff" />
+  <rect x="26" y="40" width="12" height="12" fill="#ff4444" />
+  <rect x="40" y="40" width="12" height="12" fill="#44ff44" />
+  
+  <!-- Block Outlines -->
+  <rect x="12" y="12" width="12" height="12" fill="none" stroke="#111122" stroke-width="1" />
+  <rect x="26" y="12" width="12" height="12" fill="none" stroke="#111122" stroke-width="1" />
+  <rect x="40" y="12" width="12" height="12" fill="none" stroke="#111122" stroke-width="1" />
+  
+  <rect x="12" y="26" width="12" height="12" fill="none" stroke="#111122" stroke-width="1" />
+  <rect x="26" y="26" width="12" height="12" fill="none" stroke="#111122" stroke-width="1" />
+  <rect x="40" y="26" width="12" height="12" fill="none" stroke="#111122" stroke-width="1" />
+  
+  <rect x="12" y="40" width="12" height="12" fill="none" stroke="#111122" stroke-width="1" />
+  <rect x="26" y="40" width="12" height="12" fill="none" stroke="#111122" stroke-width="1" />
+  <rect x="40" y="40" width="12" height="12" fill="none" stroke="#111122" stroke-width="1" />
+</svg>
