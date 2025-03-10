@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 
 const MuteButton = ({ soundManager }) => {
   const [muted, setMuted] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
 
+  // Initialize mute state based on sound manager
   useEffect(() => {
-    // Check initial mute state
     if (soundManager) {
       setMuted(soundManager.muted);
     }
   }, [soundManager]);
 
+  // Toggle mute state
   const toggleMute = () => {
     if (soundManager) {
       // Resume audio context on user interaction
@@ -17,6 +19,17 @@ const MuteButton = ({ soundManager }) => {
       
       const newMuted = soundManager.toggleMute();
       setMuted(newMuted);
+      
+      // Trigger animation
+      setIsAnimating(true);
+      setTimeout(() => setIsAnimating(false), 300);
+      
+      // Play sound effect if unmuting
+      if (!newMuted) {
+        setTimeout(() => {
+          soundManager.play('select');
+        }, 100);
+      }
     } else {
       setMuted(!muted);
     }
@@ -24,7 +37,9 @@ const MuteButton = ({ soundManager }) => {
 
   return (
     <button 
-      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
+      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg transform ${
+        isAnimating ? 'scale-110' : 'scale-100'
+      } ${
         muted ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
       }`}
       onClick={toggleMute}

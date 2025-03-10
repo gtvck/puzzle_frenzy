@@ -2,13 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Press Start 2P font for pixel look */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
 body {
   margin: 0;
-  font-family: 'Press Start 2P', 'Courier New', monospace;
-  -webkit-font-smoothing: none;
-  -moz-osx-font-smoothing: none;
-  background-color: #121212;
-  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #111827; /* bg-gray-900 */
+  overflow-x: hidden;
 }
 
 /* Pixel-perfect rendering */
@@ -49,9 +54,20 @@ canvas {
   }
 }
 
-/* Utility classes */
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(-5%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+/* Custom utility classes */
+.animate-pulse-slow {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .animate-fadeIn {
@@ -62,13 +78,70 @@ canvas {
   animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* Font classes */
-.font-pixel {
-  font-family: 'Press Start 2P', 'Courier New', monospace;
+.animate-bounce-slow {
+  animation: bounce 2s infinite;
 }
 
-/* Disable text selection */
+/* Font classes */
+.font-pixel {
+  font-family: 'Press Start 2P', monospace;
+  letter-spacing: 0.05em;
+}
+
+/* Disable text selection for better gameplay */
 * {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Additional accessibility improvements */
+button:focus {
+  outline: 2px solid #6366f1; /* indigo-500 */
+  outline-offset: 2px;
+}
+
+button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Retro CRT scanline effect (optional - can be toggled with a game setting) */
+.crt-scanlines::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.1) 50%,
+    transparent 51%,
+    transparent 100%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0.3;
+}
+
+/* Loader styles */
+.pixelated-loader {
+  width: 50px;
+  height: 50px;
+  background-color: transparent;
+  box-shadow: 
+    10px 10px 0 0 #f00,
+    20px 10px 0 0 #0f0,
+    10px 20px 0 0 #00f,
+    20px 20px 0 0 #ff0;
+  animation: pixelatedLoaderAnimation 2s linear infinite;
+}
+
+@keyframes pixelatedLoaderAnimation {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(90deg); }
+  50% { transform: rotate(180deg); }
+  75% { transform: rotate(270deg); }
+  100% { transform: rotate(360deg); }
 }
